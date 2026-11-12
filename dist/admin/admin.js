@@ -1,5 +1,6 @@
 const byId = id => document.getElementById(id);
 const tabs = {
+  wiki: {label:'Wiki',resource:'wiki'},
   news: {label:'News',resource:'articles',section:'news'},
   reviews: {label:'Reviews',resource:'articles',section:'review'},
   reports: {label:'Weekly reports',resource:'articles',section:'weekly_report'},
@@ -50,6 +51,7 @@ function field(form,name,label,type='text',value='',options=[]){
   input.name=name;wrapper.append(input);form.append(wrapper);return input;
 }
 function edit(item={}){
+  if(active==='wiki'){wikiForm(item).catch(error=>message(error.message,true));return;}
   current=item;dirty=false;renderItems();byId('editor').replaceChildren();
   if(active==='media'){mediaLibrary(item);return;}
   const form=element('form');const tab=tabs[active];
@@ -109,3 +111,54 @@ byId('logout').onclick=async()=>{if(!discard())return;try{await api('/api/admin/
 byId('new').onclick=()=>{if(discard())edit();};byId('search').oninput=renderItems;
 window.addEventListener('beforeunload',event=>{if(dirty){event.preventDefault();event.returnValue='';}});
 api('/api/admin/session').then(enter).catch(error=>{showLogin();if(error.message!=='Please sign in.')message(error.message,true);});
+
+async function wikiForm(item={}) {
+  const chosen=item;
+  current=chosen;dirty=false;renderItems();
+  byId('editor').replaceChildren(element('p',{},'Loading wiki editor…'));
+  const [genres,entry]=await Promise.all([api('/api/admin/wiki/genres'),item.id?api('/api/admin/wiki/'+item.id):Promise.resolve({entry_type:'artist',revision:0})]);
+  if(active!=='wiki'||current!==chosen)return;
+  byId('editor').replaceChildren();
+  const form=element('form');
+  form.append(element('h2',{},entry.id?'Edit wiki draft':'New wiki entry'));
+  form.append(element('p',{className:'help'},'Drafts are private. Save a profile here; public publishing, images and relationships will follow.'));
+  const type=field(form,'entry_type','Entry type','select',entry.entry_type,[['artist','Artist'],['band','Band'],['label','Label']]);type.disabled=!!entry.id;
+  field(form,'name','Name','text',entry.name).required=true;
+  field(form,'slug','Page slug (lowercase words separated by hyphens)','text',entry.slug).required=true;
+  field(form,'summary','Short introduction','textarea',entry.summary);
+  field(form,'body_markdown','Biography / history','textarea',entry.body_markdown);
+  field(form,'location','Location','text',entry.location);
+  const genreBox=element('fieldset');genreBox.append(element('legend',{},'Genres'));
+  for(const genre of genres){const label=element('label',{},genre.name);const input=element('input',{type:'checkbox',value:String(genre.id),checked:(entry.genre_ids||[]).includes(genre.id)});input.name='genre_ids';label.prepend(input);genreBox.append(label);}form.append(genreBox);
+  function rows(title,definitions,initial){
+    const section=element('fieldset');section.append(element('legend',{},title));const container=element('div');section.append(container);const records=[];
+    function add(values={}){
+      const row=element('div',{className:'wiki-row'});const inputs={};
+      for(const [key,label,kind='text',options=[]] of definitions)inputs[key]=field(row,key,label,kind,values[key]??(key==='alias_type'?'alternate':''),options);
+      const remove=element('button',{type:'button'},'Remove');remove.onclick=()=>{records.splice(records.indexOf(record),1);row.remove();dirty=true;};row.append(remove);const record={inputs};records.push(record);container.append(row);
+    }
+    initial.forEach(add);const button=element('button',{type:'button'},'Add '+(title==='Aliases'?'alias':title.toLowerCase().replace(/s$/,'')));button.onclick=()=>{add();dirty=true;};section.append(button);form.append(section);
+    return ()=>records.map(({inputs})=>Object.fromEntries(Object.entries(inputs).map(([key,input])=>[key,input.value])));
+  }
+  const aliases=rows('Aliases',[['name','Name'],['alias_type','Kind','select',['alternate','former','stylization']],['notes','Notes']],entry.aliases||[]);
+  const links=rows('Links',[['label','Label'],['url','HTTPS URL','url']],entry.links||[]);
+  const sources=rows('Sources',[['title','Title'],['url','HTTPS URL (optional)','url'],['publisher','Publisher'],['citation_notes','Citation notes','textarea']],entry.sources||[]);
+  const preview=element('div',{className:'preview',hidden:true});const toggle=element('button',{type:'button'},'Preview text');toggle.onclick=()=>{preview.hidden=!preview.hidden;preview.textContent=form.elements.body_markdown.value||'No text yet.';};form.append(toggle,preview);
+  form.append(element('p',{className:'help'},'Text preview shows paragraph breaks; Markdown formatting is not rendered in this editor.'));
+  const save=element('button',{type:'submit',className:'primary'},'Save draft');form.append(save);
+  if(entry.status && entry.status!=='draft'){save.disabled=true;form.append(element('p',{},'This entry is not a draft and cannot be edited in this release.'));}
+  if(entry.id)form.append(element('p',{className:'muted'},'Saved revision '+entry.revision));
+  form.oninput=()=>{dirty=true;};
+  form.onsubmit=async event=>{
+    event.preventDefault();save.disabled=true;
+    try{
+      const data={entry_type:entry.entry_type,revision:entry.revision,status:'draft',aliases:aliases(),links:links(),sources:sources(),genre_ids:[...genreBox.querySelectorAll('input:checked')].map(input=>Number(input.value))};
+      if(!entry.id)data.entry_type=type.value;
+      for(const key of ['name','slug','summary','body_markdown','location'])data[key]=form.querySelector('[name="'+key+'"]').value;
+      const saved=await api('/api/admin/wiki'+(entry.id?'/'+entry.id:''),{method:entry.id?'PUT':'POST',body:JSON.stringify(data)});
+      dirty=false;
+      if(active==='wiki'){await load();await wikiForm(saved);message('Wiki draft saved. Revision '+saved.revision+'.');}
+    }catch(error){message(error.message,true);}finally{save.disabled=false;}
+  };
+  byId('editor').append(form);
+}
