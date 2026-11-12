@@ -1,7 +1,40 @@
-
 {
   "name": "future-fire-website",
+  "main": "src/worker.mjs",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "compatibility_date": "2026-11-10",
-  "assets": { "directory": "dist" },
-  "observability": { "enabled": true }
+  "assets": {
+    "directory": "dist",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/api/*",
+      "/admin",
+      "/admin/*",
+      "/media/*"
+    ]
+  },
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "futurefire-club-db",
+      "database_id": "9903bc9b-d3fc-451c-bc67-c5f034198f90",
+      "migrations_dir": "migrations"
+    },
+    {
+      "binding": "WIKI_DB",
+      "database_name": "futurefire-wiki",
+      "database_id": "e74b07aa-b0d3-43f6-ab2b-e35f1d9f897e"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "futurefire-media"
+    }
+  ]
 }
