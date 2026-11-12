@@ -1,5 +1,7 @@
 {
   "name": "future-fire-website",
+  "workers_dev": false,
+  "preview_urls": false,
   "main": "src/worker.mjs",
   "compatibility_flags": [
     "nodejs_compat"
