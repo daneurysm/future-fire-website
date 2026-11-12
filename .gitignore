@@ -1,0 +1,33 @@
+# Local tooling and dependencies
+node_modules/
+.wrangler/
+.next/
+coverage/
+*.log
+.DS_Store
+
+# Credentials and local environment files
+.env
+.env.*
+.dev.vars
+.dev.vars.*
+credentials/
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+.npmrc
+
+# Database backups and local database files (keep migrations tracked)
+*backup*.sql
+*backup*.sql.*
+*dump*.sql
+*dump*.sql.*
+backups/
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+*.sql.gz
