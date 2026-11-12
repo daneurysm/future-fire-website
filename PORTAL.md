@@ -1,6 +1,6 @@
 # Future Fire control room
 
-Visit `https://futurefire.club/admin` after deployment. The wiki is untouched.
+Visit `https://futurefire.club/admin` after deployment. The Wiki tab supports private draft editing; public wiki publishing is not included yet.
 
 ## First owner setup
 
@@ -27,3 +27,11 @@ Use Node 22.13 or newer (tests use `node:sqlite`). Run `npm ci`, `npm run build`
 For restoration, inspect existing migration records first; do not rerun migrations or administrator setup. Apply only separately reviewed, genuinely pending migrations when explicitly authorized. Deployment is a separate approval step. The existing Worker name, domain, and resource IDs must be preserved. No DNS changes are needed. The existing Cloudflare Git build uses the checked-in `dist/` bundle: always run `npm run build` before sharing source changes or deployment from Git. Direct deployments do not push local changes to GitHub.
 
 Test coverage includes password salting, session cookie flags and revocation, same-origin enforcement, login throttling, draft/scheduled visibility, review metadata, URL validation, upload validation, private draft images, and one-time setup access checks. Local browser QA also exercises real Worker/D1 login, article creation, saving, and publishing. These checks are not a substitute for an independent security audit.
+
+## Wiki draft editor
+
+The Wiki tab uses the existing administrator session and the separate WIKI_DB binding. Create Artist, Band or Label drafts with biography/history, introduction, location, aliases, genre selections, HTTPS links and sources. Saved entries can be reopened; each successful save records a revision snapshot. Stale saves are rejected so another editor's changes are not silently overwritten. The directory lists the latest 500 entries and filters names locally.
+
+This release is draft-only: publishing, archiving, relationships, images, type-specific dates, revision restoration and public wiki pages are not implemented. Revision snapshots cover fields managed by this editor, not future media or relationships. The schema baseline and recovery reference are in wiki-migrations/README.md. Production already has that schema; do not replay its creation migration. No Wrangler binding or migration-directory changes are needed for this draft editor.
+
+Validation: nine automated tests pass, including existing portal tests, wiki authentication/origin protection, draft round trips, revisions, stale saves, validation and atomic rollback. The frontend build and Wrangler deploy dry run pass with all four bindings. Browser QA against isolated in-memory SQLite databases verified login, creating a profile with alias/genre/link/source, saving and updating to a second revision. This is local QA, not a live Cloudflare verification.

@@ -1,3 +1,4 @@
+import { wiki } from './wiki.mjs';
 import { verifyPassword, hashPassword } from '../scripts/password.mjs';
 
 const cookieName = '__Host-ff-session';
@@ -143,8 +144,13 @@ export default {
       if (path === '/api/content' && request.method === 'GET') return await publicContent(env);
       if (path === '/api/login' && request.method === 'POST') return await login(request,env);
       if (path.startsWith('/api/admin/')) {
-        if (!await session(request,env)) fail('Please sign in.',401);
+        const admin = await session(request,env);
+        if (!admin) fail('Please sign in.',401);
         const [, , , name, id] = path.split('/');
+        if (name === 'wiki') {
+          if (path.split('/').length > 5) fail('Not found.',404);
+          return await wiki(request,env,id || '',{body,json,admin});
+        }
         if (name === 'session') return json({ok:true});
         if (name === 'logout' && request.method === 'POST') { await env.DB.prepare('DELETE FROM admin_sessions WHERE token_hash=?').bind(await digest(sessionToken(request))).run(); return json({ok:true},200,{'Set-Cookie':`${cookieName}=; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=0`}); }
         if (name === 'password' && request.method === 'POST') {
