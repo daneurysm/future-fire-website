@@ -147,6 +147,20 @@ export default {
         const admin = await session(request,env);
         if (!admin) fail('Please sign in.',401);
         const [, , , name, id] = path.split('/');
+        // Wiki image previews are private even if an entry is marked published.
+        // Public wiki publishing is a separate release.
+        if(name==='wiki-images'){
+          if(!['GET','HEAD'].includes(request.method))fail('Method not allowed.',405);
+          if(path.split('/').length!==5||!id||!/^[1-9][0-9]*$/.test(id)||!Number.isSafeInteger(Number(id)))fail('Not found.',404);
+          if(!env.WIKI_DB||!env.MEDIA)fail('Wiki image storage is not configured.',503);
+          const image=await env.WIKI_DB.prepare('SELECT r2_key FROM entry_images WHERE id=?').bind(Number(id)).first();
+          if(!image)fail('Not found.',404);
+          const object=await env.MEDIA.get(image.r2_key);if(!object)fail('Not found.',404);
+          const media=await env.DB.prepare('SELECT content_type FROM media WHERE object_key=?').bind(image.r2_key).first();
+          const type=media?.content_type||object.httpMetadata?.contentType;
+          if(!['image/jpeg','image/png','image/gif','image/webp'].includes(type))fail('Unsupported image type.',415);
+          return new Response(request.method==='HEAD'?null:object.body,{headers:{...security,'Content-Type':type,...(object.size===undefined?{}:{'Content-Length':String(object.size)})}});
+        }
         if (name === 'wiki') {
           if (path.split('/').length > 5) fail('Not found.',404);
           return await wiki(request,env,id || '',{body,json,admin});
