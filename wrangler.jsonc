@@ -30,7 +30,8 @@
     {
       "binding": "WIKI_DB",
       "database_name": "futurefire-wiki",
-      "database_id": "e74b07aa-b0d3-43f6-ab2b-e35f1d9f897e"
+      "database_id": "e74b07aa-b0d3-43f6-ab2b-e35f1d9f897e",
+      "migrations_dir": "wiki-migrations"
     }
   ],
   "r2_buckets": [
